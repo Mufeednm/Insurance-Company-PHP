@@ -11,7 +11,7 @@ class Attributes extends Model
     protected $returnType       = 'App\Entities\Entity';
 
     protected $allowedFields    = [
-        'productId', 'attributeName', 'attributeType', 'isRequired', 'attributeOrder', 'options',
+        'productId', 'attributeName', 'attributeType', 'isRequired', 'attributeOrder', 'options',"isReminder",
         'created_at', 'modified_at'
     ];
 
@@ -26,6 +26,7 @@ class Attributes extends Model
         'attributeName' => 'required|min_length[1]|max_length[255]',
         'attributeType' => 'required|in_list[text,textarea,select,checkbox,radio,number,date]',
         'isRequired'    => 'required|in_list[0,1]',
+        'isReminder'    => 'required|in_list[0,1]',
         'attributeOrder'=> 'permit_empty|is_natural',
     ];
 
@@ -42,6 +43,9 @@ class Attributes extends Model
         ],
         'isRequired' => [
             'in_list' => 'isRequired must be 0 or 1.',
+        ],
+        'isReminder' => [
+            'in_list' => 'isReminder must be 0 or 1.',
         ],
         'attributeOrder' => [
             'is_natural' => 'Order must be a natural number (0,1,2...).',

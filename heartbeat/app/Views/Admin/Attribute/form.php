@@ -30,21 +30,31 @@ $isEdit = isset($const['id']) && !empty($const['id']);
     <div class="col-xxl-4 col-md-4">
         <?= select('attributeType', 'Type', [
             'text' => 'Text',
+            'date' => 'Date',
             'textarea' => 'Textarea',
             'select' => 'Select',
             'checkbox' => 'Checkbox',
             'radio' => 'Radio',
             'number' => 'Number',
-            'date' => 'Date'
+         
         ], $data, ['required' => true]); ?>
     </div>
-</div>
 
+    
+</div>
 <!-- Row 2 -->
 <div class="row mt-3">
+
+    <!-- Reminder (only for date type) -->
+    <div class="col-xxl-4 col-md-4" id="reminderCol" style="display:none;">
+        <?= select('isReminder', 'Reminder', ['1' => 'Yes', '0' => 'No'], $data, ['required' => false]); ?>
+    </div>
+    
     <div class="col-xxl-4 col-md-4">
         <?= select('isRequired', 'Required', ['1' => 'Yes', '0' => 'No'], $data, ['required' => true]); ?>
     </div>
+
+
 
     <div class="col-xxl-4 col-md-4">
         <?= input('attributeOrder', 'Order', 'number', $data, ['min' => 0]); ?>
@@ -68,3 +78,22 @@ $isEdit = isset($const['id']) && !empty($const['id']);
         <small class="form-text text-muted">Only for select/checkbox/radio types. Stored as ["opt1"|"opt2"].</small>
     </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const typeSelect = document.querySelector("[name='attributeType']");
+    const reminderCol = document.getElementById("reminderCol");
+
+    function toggleReminder() {
+        if (typeSelect.value === "date") {
+            reminderCol.style.display = "block";
+        } else {
+            reminderCol.style.display = "none";
+            reminderCol.querySelector("select").value = "0"; // reset to No
+        }
+    }
+
+    typeSelect.addEventListener("change", toggleReminder);
+    toggleReminder(); // run on page load
+});
+</script>

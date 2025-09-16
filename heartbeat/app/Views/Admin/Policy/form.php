@@ -2,13 +2,11 @@
 // $data is the Policy entity (App\Entities\Entity)
 $isEdit = isset($const['id']) && !empty($const['id']);
 $productIdVal = old('productId', $data->productId ?? '');
-$startVal     = old('startDate', $data->startDate ?? '');
-$endVal       = old('endDate', $data->endDate ?? '');
-$statusVal    = old('status', $data->status ?? 'Active');
 ?>
 
-<div class="row g-3">
-  <div class="col-xxl-4 col-md-6">
+<div class="row g-3 align-items-start" id="attributes-row">
+  <!-- Product column -->
+  <div class="col-md-3 col-sm-6" id="product-col">
     <label for="productId" class="form-label">Product</label>
     <select name="productId" id="productId" class="form-select" required>
       <option value="">Select Product</option>
@@ -18,24 +16,22 @@ $statusVal    = old('status', $data->status ?? 'Active');
     </select>
   </div>
 
-  <div class="col-xxl-3 col-md-4">
-    <label class="form-label">Start Date</label>
-    <input type="date" name="startDate" class="form-control" value="<?= esc($startVal) ?>" required>
+  <!-- Customer Name -->
+  <div class="col-md-3 col-sm-6">
+    <label for="customerName" class="form-label">Customer Name</label>
+    <input type="text" name="customerName" id="customerName" class="form-control"
+    placeholder="customerName" required>
   </div>
 
-  <div class="col-xxl-3 col-md-4">
-    <label class="form-label">End Date</label>
-    <input type="date" name="endDate" class="form-control" value="<?= esc($endVal) ?>">
+  <!-- Customer Phone -->
+  <div class="col-md-3 col-sm-6">
+    <label for="customerphone" class="form-label">Customer Phone</label>
+    <input type="tel" name="customerphone" id="customerphone" class="form-control"
+            placeholder=" phone number" required>
   </div>
 
-  
-
-  <div class="col-xxl-2 col-md-4">
-    <label class="form-label">Reminder</label>
-    <?php $reminderVal = $reminderVal ?? '1'; // default YES ?>
-<select name="isReminder" class="form-select">
-  <option value="1" <?= $reminderVal == '1' ? 'selected' : '' ?>> Yes</option>
-  <option value="0" <?= $reminderVal == '0' ? 'selected' : '' ?>> No</option>
-</select>
+  <!-- Attributes placeholder (will expand to fill remaining space) -->
+  <div id="attributes-placeholder" class="col-md-3 col-sm-6">
+    <!-- Placeholder or dynamically injected attributes -->
   </div>
 </div>

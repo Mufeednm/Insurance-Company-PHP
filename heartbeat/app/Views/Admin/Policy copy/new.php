@@ -28,7 +28,6 @@
         </div>
 
         <div class="card-body border border-dashed">
-            <!-- form.php contains product select AND the single attributes-wrapper -->
             <?= $this->include($const['viewfolder'] . "form"); ?>
 
             <?php if (session()->has('error')) : ?>
@@ -62,70 +61,40 @@
 document.addEventListener("DOMContentLoaded", function () {
     var basePath = "<?= site_url(); ?>";
     const productSelect = document.querySelector('select[name="productId"]');
-    const attributesRow = document.getElementById("attributes-row");
-    const placeholder = document.getElementById("attributes-placeholder");
-
-    function clearAttributeCols() {
-        // remove any .attr-col elements (old attribute columns)
-        const old = attributesRow.querySelectorAll('.attr-col');
-        old.forEach(n => n.remove());
-    }
+    const attributesWrapper = document.getElementById("attributes-wrapper");
 
     function syncProductHeight() {
-    const productCol = document.getElementById('product-col');
-    const attributesRow = document.getElementById('attributes-row');
-    if (!productCol || !attributesRow) return;
-    // Reset first
-    productCol.style.minHeight = '';
-    // setTimeout(() => {
-    //     const target = attributesRow.offsetHeight || 0;
-    //     // don't change for tiny diffs
-    //     if (target <= productCol.offsetHeight + 8) {
-    //         productCol.style.minHeight = '';
-    //         return;
-    //     }
-    //     // cap to avoid huge gaps from unexpected content
-    //     const cap = 120; // px — adjust if you want taller product box
-    //     productCol.style.minHeight = Math.min(target, cap) + 'px';
-    // }, 40);
-}
-
+        const productCol = document.querySelector('#productId')?.closest('.col-md-3') || null;
+        if (!productCol || !attributesWrapper) return;
+        productCol.style.minHeight = '';
+        setTimeout(() => {
+            const h = attributesWrapper.offsetHeight;
+            if (h && h > productCol.offsetHeight) productCol.style.minHeight = h + 'px';
+        }, 50);
+    }
 
     if (productSelect) {
         productSelect.addEventListener("change", function () {
             const pid = this.value;
-            // clear existing attribute columns
-            clearAttributeCols();
-
             if (!pid) {
-                // restore placeholder
-                if (placeholder && !attributesRow.contains(placeholder)) {
-                    attributesRow.appendChild(placeholder);
-                }
+                // attributesWrapper is already a column; only set inner rows/contents
+                attributesWrapper.innerHTML = '<div class="mb-2 text-muted">Select a product to load attributes.</div>';
                 syncProductHeight();
                 return;
             }
-
-            // remove placeholder (we will append columns directly into attributesRow)
-            if (placeholder && attributesRow.contains(placeholder)) {
-                placeholder.remove();
-            }
-
             fetch(basePath + "<?= $const['route']; ?>/attributes/" + pid, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(r => {
                     if (!r.ok) throw new Error('Network response was not ok');
                     return r.text();
                 })
                 .then(html => {
-                    // html MUST contain a sequence of <div class="col-md-3 col-sm-6 attr-col">...</div>
-                    // Insert the columns as siblings inside attributesRow (after the product column)
-                    attributesRow.insertAdjacentHTML('beforeend', html);
+                    // server partial should produce .row/.col markup — we inject it here
+                    attributesWrapper.innerHTML = html;
                     syncProductHeight();
                 })
                 .catch(err => {
                     console.error("Failed to load attributes", err);
-                    // show a full-width error message (col-12)
-                    attributesRow.insertAdjacentHTML('beforeend', '<div class="col-12 attr-col"><div class="alert alert-danger">Failed to load attributes</div></div>');
+                    attributesWrapper.innerHTML = '<div class="alert alert-danger">Failed to load attributes</div>';
                     syncProductHeight();
                 });
         });

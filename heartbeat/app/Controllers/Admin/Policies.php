@@ -45,12 +45,10 @@ class Policies extends \App\Controllers\BaseController
         $builder = $db->table(DBTABLE)
         ->select(
             DBTABLE . '.policyId, '
-            
             . 'products.name as productName, '
             . DBTABLE . '.status, '
             . DBTABLE . '.modified_at, '
-            . DBTABLE . '.startDate, '
-            . DBTABLE . '.endDate'
+       
         )
         ->join('products', 'products.productId = ' . DBTABLE . '.productId', 'left');
     
@@ -118,10 +116,8 @@ class Policies extends \App\Controllers\BaseController
         // Basic policy row
         $policyRow = [
             'productId' => isset($post['productId']) ? (int)$post['productId'] : null,
-            'startDate' => $post['startDate'] ?? null,
-            'endDate'   => $post['endDate'] ?? null,
             'status'    => $post['status'] ?? 'Active',
-            'isReminder'    => $post['isReminder'] ?? 'No',
+
         ];
       
     
@@ -188,7 +184,7 @@ class Policies extends \App\Controllers\BaseController
         $policyId = (int)$this->model->getInsertID();
     
         $avModel  = new \App\Models\AttributeValues();
-        $pavModel = new \App\Models\PolicyAttributeValues();
+        // $pavModel = new \App\Models\PolicyAttributeValues();
     
         $errors = []; // collect non-fatal attribute errors
     
@@ -220,17 +216,17 @@ class Policies extends \App\Controllers\BaseController
     
             $attributeValueId = (int)$avModel->getInsertID();
     
-            if (!$pavModel->insert([
-                'policyId' => $policyId,
-                'attributeValueId' => $attributeValueId
-            ])) {
-                $pErrs = $pavModel->errors();
-                $dbErr  = $db->error();
-                $msg = "PolicyAttributeValues insert failed link policy {$policyId} -> value {$attributeValueId}: model_errors=" . json_encode($pErrs) . " db_error=" . json_encode($dbErr);
-                log_message('error', $msg);
-                $errors[] = "Failed linking attribute value {$attributeValueId}";
-                continue;
-            }
+            // if (!$pavModel->insert([
+            //     'policyId' => $policyId,
+            //     'attributeValueId' => $attributeValueId
+            // ])) {
+            //     $pErrs = $pavModel->errors();
+            //     $dbErr  = $db->error();
+            //     $msg = "PolicyAttributeValues insert failed link policy {$policyId} -> value {$attributeValueId}: model_errors=" . json_encode($pErrs) . " db_error=" . json_encode($dbErr);
+            //     log_message('error', $msg);
+            //     $errors[] = "Failed linking attribute value {$attributeValueId}";
+            //     continue;
+            // }
         }
     
         $db->transComplete();
@@ -310,10 +306,10 @@ class Policies extends \App\Controllers\BaseController
 
         $data->fill([
             'productId' => $post['productId'] ?? $data->productId,
-            'startDate' => $post['startDate'] ?? $data->startDate,
-            'endDate'   => $post['endDate'] ?? $data->endDate,
+        
             'status'    => $post['status'] ?? $data->status
         ]);
+
 
         $policySaved = $data->hasChanged() ? $this->model->save($data) : true;
 
@@ -322,10 +318,10 @@ class Policies extends \App\Controllers\BaseController
         }
 
         $avModel  = new \App\Models\AttributeValues();
-        $pavModel = new \App\Models\PolicyAttributeValues();
+        // $pavModel = new \App\Models\PolicyAttributeValues();
 
         $avModel->where('policyId', $policyId)->delete();
-        $pavModel->where('policyId', $policyId)->delete();
+        // $pavModel->where('policyId', $policyId)->delete();
 
         $attributesPosted = $post['attributes'] ?? [];
         $errors = [];
@@ -338,6 +334,7 @@ class Policies extends \App\Controllers\BaseController
                 'attributeId' => (int)$attributeId,
                 'value'       => $valueStr,
             ];
+            dd($avRow);
 
             if (!$avModel->insert($avRow)) {
                 $errors[] = "Attribute [$attributeId]: " . implode(', ', (array)$avModel->errors());

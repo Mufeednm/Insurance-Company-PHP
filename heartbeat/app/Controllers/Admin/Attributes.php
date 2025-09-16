@@ -132,6 +132,7 @@ foreach ($products as $p) {
             'attributeName' => trim((string)($post['attributeName'] ?? '')),
             'attributeType' => trim((string)($post['attributeType'] ?? 'text')),
             'isRequired'    => isset($post['isRequired']) ? (int)$post['isRequired'] : 0,
+            'isReminder'    => isset($post['isReminder']) ? (int)$post['isReminder'] : 0,
             'attributeOrder'=> isset($post['attributeOrder']) ? (int)$post['attributeOrder'] : 0,
             'options'       => $optionsNormalized
         ];
