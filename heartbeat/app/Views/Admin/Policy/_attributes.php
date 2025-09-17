@@ -12,17 +12,15 @@ function parseOptionsString($s) {
 }
 
 if (empty($attributes)) {
-    // Show a single column message (optional)
     echo '<div class="col-12 attr-col"><div class="alert alert-info mb-0">No attributes defined for this product.</div></div>';
     return;
 }
 
-// Output attributes as plain columns (no wrapping rows)
 foreach (array_values($attributes) as $attr) {
     $id = (int)$attr->attributeId;
-    $label = esc($attr->attributeName);
-    $type  = $attr->attributeType;
-    $required = ((int)$attr->isRequired === 1);
+    $label = $attr->attributeName ?? "Attribute $id";
+    $type  = strtolower($attr->attributeType ?? 'text');
+    $required = ((int)($attr->isRequired ?? 0) === 1);
     $opts = !empty($attr->options) ? parseOptionsString($attr->options) : [];
     $val = $values[$id] ?? null;
     $oldVal = old("attributes.$id");
@@ -30,18 +28,16 @@ foreach (array_values($attributes) as $attr) {
     $placeholder = isset($attr->placeholder) && trim((string)$attr->placeholder) !== '' ? $attr->placeholder : $label;
     $requiredAttr = $required ? 'required' : '';
 
-    // new: make textarea a flexible column so it fills the remaining width in the current row
-    // other inputs remain fixed-width (col-md-3) for consistent grid
+    // textarea should be flexible; others fixed to 3-col
     $colClass = ($type === 'textarea') ? 'col attr-col' : 'col-md-3 col-sm-6 attr-col';
 
     echo '<div class="'. $colClass .'">';
-      echo '<label class="form-label">'. $label . ($required ? ' <span class="text-danger">*</span>' : '') .'</label>';
+      echo '<label class="form-label">'. esc($label) . ($required ? ' <span class="text-danger">*</span>' : '') .'</label>';
 
       switch ($type) {
         case 'textarea':
-          // now textarea will expand to fill remaining width in the row
           $v = is_array($val) ? implode("\n", $val) : ($val ?? '');
-          echo '<textarea name="attributes['.$id.']" class="form-control" rows="1" '. $requiredAttr .' placeholder="'.esc($placeholder).'">'.esc($v).'</textarea>';
+          echo '<textarea name="attributes['.$id.']" class="form-control" rows="2" '. $requiredAttr .' placeholder="'.esc($placeholder).'">'.esc($v).'</textarea>';
           break;
 
         case 'select':
@@ -87,7 +83,6 @@ foreach (array_values($attributes) as $attr) {
           break;
 
         case 'number':
-          // Use inputmode + oninput to restrict to digits only.
           $v = $val ?? '';
           $numericAttrs = 'inputmode="numeric" pattern="\\d*" oninput="this.value=this.value.replace(/[^\\d]/g,\'\');"';
           echo '<input type="text" name="attributes['.$id.']" class="form-control" value="'.esc($v).'" placeholder="'.esc($placeholder).'" '. $numericAttrs .' '. $requiredAttr .'>';

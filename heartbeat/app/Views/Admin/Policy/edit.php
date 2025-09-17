@@ -1,23 +1,20 @@
 <?= $this->extend("Layouts/default") ?>
-<?= $this->section("title") ?>Edit <?= $const['item'] ?><?= $this->endSection() ?>
-<?= $this->section("headercss") ?><?= $this->endSection() ?>
-<?= $this->section("headerjs") ?><?= $this->endSection() ?>
-
+<?= $this->section("title") ?>Edit <?= esc($const['item']) ?><?= $this->endSection() ?>
 <?= $this->section("content") ?>
 
 <div class="row">
-    <div class="col-12">
-        <div class="page-title-box d-sm-flex align-items-center justify-content-between">
-            <h4 class="mb-sm-0"><?= $const["items"]; ?></h4>
-            <div class="page-title-right">
-                <ol class="breadcrumb m-0">
-                    <li class="breadcrumb-item"><a href="<?= site_url('dashboard'); ?>">Dashboard</a></li>
-                    <li class="breadcrumb-item"><a href="<?= site_url($const['route']); ?>"><?= $const["items"]; ?></a></li>
-                    <li class="breadcrumb-item active">Edit <?= $const["item"]; ?></li>
-                </ol>
-            </div>
-        </div>
+  <div class="col-12">
+    <div class="page-title-box d-sm-flex align-items-center justify-content-between">
+      <h4 class="mb-sm-0"><?= esc($const["items"]) ?></h4>
+      <div class="page-title-right">
+        <ol class="breadcrumb m-0">
+          <li class="breadcrumb-item"><a href="<?= site_url('dashboard'); ?>">Dashboard</a></li>
+          <li class="breadcrumb-item"><a href="<?= site_url($const['route']); ?>"><?= esc($const["items"]) ?></a></li>
+          <li class="breadcrumb-item active">Edit <?= esc($const["item"]) ?></li>
+        </ol>
+      </div>
     </div>
+  </div>
 </div>
 
 <div class="row">
@@ -26,18 +23,21 @@
     <?= form_open($action, ['class'=>'needs-validation','novalidate'=>'novalidate']); ?>
       <div class="card">
         <div class="card-header border-0">
-          <h4 class="card-title mb-0">Edit <?= $const['item']; ?></h4>
+          <h4 class="card-title mb-0">Edit <?= esc($const['item']) ?></h4>
         </div>
 
         <div class="card-body border border-dashed">
-          <?= $this->include($const['viewfolder'] . "form"); ?>
+          <?= $this->include(rtrim($const['viewfolder'], '/') . '/form'); ?>
 
-          <div id="attributes-wrapper" class="mt-4">
-            <?php if (!empty($attributes)) {
-                // controller should pass $attributes and $attributeValues
-                echo view($const['viewfolder'] . '_attributes', ['attributes'=>$attributes, 'values'=>$attributeValues ?? []]);
-            } ?>
-          </div>
+          <!-- render attributes HTML server-side into a JS-safe variable, but DO NOT output here directly.
+               We'll insert it into the attributes placeholder so it becomes sibling cols (like New). -->
+          <?php if (!empty($attributes)): 
+              // render attributes to a string (they are blocks with .attr-col)
+              $renderedAttributes = view($const['viewfolder'] . '_attributes', ['attributes'=>$attributes, 'values'=>$attributeValues ?? []]);
+          else:
+              $renderedAttributes = '';
+          endif; ?>
+          <div id="serverRenderedAttributes" style="display:none"><?= htmlspecialchars($renderedAttributes, ENT_QUOTES, 'UTF-8') ?></div>
 
           <?php if (session()->has('error')) : ?>
             <div class="row mt-3">
@@ -45,7 +45,7 @@
                 <div class="alert alert-danger" role="alert">
                   <ul style="margin-bottom:0px;">
                     <?php foreach ((array)session('error') as $error) : ?>
-                      <li><?= $error ?></li>
+                      <li><?= esc($error) ?></li>
                     <?php endforeach; ?>
                   </ul>
                 </div>
@@ -59,7 +59,7 @@
           <a href="<?= site_url($const['route']); ?>" class="btn btn-danger btn-label rounded-pill"><i class="ri-close-line label-icon me-1"></i> Cancel</a>
         </div>
       </div>
-    </form>
+    <?= form_close(); ?>
   </div>
 </div>
 
@@ -70,39 +70,64 @@
 document.addEventListener("DOMContentLoaded", function () {
     var basePath = "<?= site_url(); ?>";
     const productSelect = document.querySelector('select[name="productId"]');
-    const attributesWrapper = document.getElementById("attributes-wrapper");
+    const attributesRow = document.getElementById("attributes-row");
+    const placeholder = document.getElementById("attributes-placeholder");
 
-    if (!productSelect) return;
+    // Inject server-rendered attributes (if any) into the placeholder inside attributes-row
+    const serverHtmlHolder = document.getElementById('serverRenderedAttributes');
+    if (serverHtmlHolder && serverHtmlHolder.textContent.trim().length > 0) {
+        // decode the HTML string we safely encoded server-side
+        const html = serverHtmlHolder.textContent;
+        // remove placeholder and insert attribute columns
+        if (placeholder && attributesRow.contains(placeholder)) placeholder.remove();
+        attributesRow.insertAdjacentHTML('beforeend', html);
+    }
 
-    // Helper to fetch attributes HTML and insert
-    function fetchAttributes(pid) {
+    function clearAttributeCols() {
+        const old = attributesRow.querySelectorAll('.attr-col');
+        old.forEach(n => n.remove());
+    }
+
+    function fetchAndInsertColumns(pid) {
         if (!pid) {
-            attributesWrapper.innerHTML = "";
+            if (placeholder && !attributesRow.contains(placeholder)) {
+                attributesRow.appendChild(placeholder);
+            }
             return;
         }
+
+        // remove placeholder
+        if (placeholder && attributesRow.contains(placeholder)) {
+            placeholder.remove();
+        }
+
         fetch(basePath + "<?= $const['route']; ?>/attributes/" + pid, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-            .then(r => r.text())
-            .then(html => attributesWrapper.innerHTML = html)
+            .then(r => {
+                if (!r.ok) throw new Error('Network response was not ok');
+                return r.text();
+            })
+            .then(html => {
+                attributesRow.insertAdjacentHTML('beforeend', html);
+            })
             .catch(err => {
                 console.error("Failed to load attributes", err);
-                attributesWrapper.innerHTML = '<div class="alert alert-danger">Failed to load attributes</div>';
+                attributesRow.insertAdjacentHTML('beforeend', '<div class="col-12 attr-col"><div class="alert alert-danger">Failed to load attributes</div></div>');
             });
     }
 
-    // Only fetch when the user *changes* the product selection
+    if (!productSelect || !attributesRow) return;
+
     productSelect.addEventListener("change", function () {
+        clearAttributeCols();
         const pid = this.value;
-        fetchAttributes(pid);
+        fetchAndInsertColumns(pid);
     });
 
-    // If the server already rendered attributes (edit flow), do NOT overwrite them.
-    // Only fetch on page load when the wrapper is empty (this happens in 'new' flow).
-    var wrapperHasContent = attributesWrapper && attributesWrapper.innerHTML.trim().length > 0;
-    if (!wrapperHasContent && productSelect.value) {
-        // new() page: fetch attributes for the selected product
-        fetchAttributes(productSelect.value);
+    // if there are no attribute cols rendered yet, fetch them
+    const hasCols = attributesRow.querySelectorAll('.attr-col').length > 0;
+    if (!hasCols && productSelect.value) {
+        fetchAndInsertColumns(productSelect.value);
     }
 });
 </script>
-
 <?= $this->endSection() ?>

@@ -199,7 +199,7 @@
           <div class="spark-wrap" id="sparkWrap" aria-hidden="true">
             <div class="spark-value" id="sparkValue">0</div>
             <div id="sparkDelta" class="spark-delta">—</div>
-            <div id="sparkChart" style="width:120px; height:36px;"></div>
+            <!-- <div id="sparkChart" style="width:120px; height:36px;"></div> -->
           </div>
 
           <div class="btn-row" style="margin:0;">
@@ -298,24 +298,28 @@
 
   // populate Recent Days table (show last 7 days)
   function populateRecentTable(rows) {
-    const tbody = document.querySelector('#recentTable tbody');
-    tbody.innerHTML = '';
-    const shown = rows.slice(-7).reverse(); // show newest first
-    let totalShown = 0;
-    shown.forEach(r => {
-      const tr = document.createElement('tr');
-      const td1 = document.createElement('td');
-      td1.textContent = r.date;
-      const td2 = document.createElement('td');
-      td2.style.textAlign = 'right';
-      td2.textContent = r.total;
-      tr.appendChild(td1);
-      tr.appendChild(td2);
-      tbody.appendChild(tr);
-      totalShown += Number(r.total || 0);
-    });
-    document.getElementById('totalShown').textContent = totalShown;
-  }
+  const tbody = document.querySelector('#recentTable tbody');
+  tbody.innerHTML = '';
+
+  const shown = rows.slice(-7).reverse(); // ✅ show only last 7 days
+  let totalShown = 0;
+
+  shown.forEach(r => {
+    const tr = document.createElement('tr');
+    const td1 = document.createElement('td');
+    td1.textContent = r.date;
+    const td2 = document.createElement('td');
+    td2.style.textAlign = 'right';
+    td2.textContent = r.total;
+    tr.appendChild(td1);
+    tr.appendChild(td2);
+    tbody.appendChild(tr);
+    totalShown += Number(r.total || 0);
+  });
+
+  document.getElementById('totalShown').textContent = totalShown;
+}
+
 
   // populate spark and stats
   const sparkEl = document.querySelector('#sparkChart');

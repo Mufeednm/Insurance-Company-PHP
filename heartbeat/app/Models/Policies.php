@@ -24,7 +24,7 @@ class Policies extends Model
     protected $validationRules = [
         'productId' => 'required|is_natural_no_zero',
         'customerName'  => 'required|min_length[2]',
-        'customerphone' => 'required|numeric|min_length[10]|max_length[15]',
+       
 
         'status'    => 'required|in_list[Active,Expired]',
     ];
@@ -36,12 +36,7 @@ class Policies extends Model
         'customerName' => [
             'required' => 'Customer name is required.',
         ],
-        'customerphone' => [
-            'required'   => 'Customer phone number is required.',
-            'numeric'    => 'Customer phone number must contain digits only.',
-            'min_length' => 'Phone number must be at least 10 digits.',
-            'max_length' => 'Phone number cannot exceed 15 digits.',
-        ],
+  
         
         'status' => [
             'in_list' => 'Status must be Active or Expired.',

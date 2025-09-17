@@ -35,8 +35,13 @@ class Policies extends \App\Controllers\BaseController
             'items'      => ITEMS,
             'viewfolder' => VIEWFOLDER,
         ];
-
-        return view(VIEWFOLDER . 'index', ['const' => $const]);
+  // Provide product list for the filter select (only active products)
+  $productModel = new \App\Models\Products();
+  $productOptions = [];
+  foreach ($productModel->where('status', '1')->orderBy('name', 'ASC')->findAll() as $p) {
+      $productOptions[$p->productId] = $p->name;
+  }
+        return view(VIEWFOLDER . 'index', ['const' => $const,'productOptions' => $productOptions]);
     }
 
     public function load()
@@ -45,12 +50,17 @@ class Policies extends \App\Controllers\BaseController
         $builder = $db->table(DBTABLE)
         ->select(
             DBTABLE . '.policyId, '
+            . DBTABLE . '.policyNumber, '
             . 'products.name as productName, '
+            . DBTABLE . '.customerName, '
+            . DBTABLE . '.customerphone, '
             . DBTABLE . '.status, '
             . DBTABLE . '.modified_at, '
        
         )
-        ->join('products', 'products.productId = ' . DBTABLE . '.productId', 'left');
+        ->join('products', 'products.productId = ' . DBTABLE . '.productId',
+        
+        'left');
     
     
         return DataTable::of($builder)
@@ -70,6 +80,27 @@ class Policies extends \App\Controllers\BaseController
             })
             ->edit('modified_at', function ($row) {
                 return date("d/m/Y H:i a", strtotime($row->modified_at));
+            })
+
+            ->filter(function ($builder, $request) {
+                // filterProductId: numeric product id from select
+                $filterProductId = $this->request->getGet('filterProductId');
+                if ($filterProductId !== null && $filterProductId !== '') {
+                    // cast to int to prevent any injection
+                    $pid = (int)$filterProductId;
+                    if ($pid > 0) {
+                        $builder->where(DBTABLE . '.productId', $pid);
+                    }
+                }
+    
+                // productName: partial search across products.name
+                $productName = $this->request->getGet('productName');
+                if ($productName !== null && $productName !== '') {
+                    // use like for partial, case-insensitive depends on DB collation
+                    $builder->like('products.name', $productName);
+                }
+    
+                // you can add more filters here later (status, dates, etc.)
             })
             ->hide('policyId')
             ->toJson();
@@ -91,7 +122,7 @@ class Policies extends \App\Controllers\BaseController
 
         $productModel = new \App\Models\Products();
         $productOptions = [];
-        foreach ($productModel->findAll() as $p) {
+        foreach ($productModel->where('status', '1')->findAll() as $p) {
             $productOptions[$p->productId] = $p->name;
         }
 
@@ -117,9 +148,12 @@ class Policies extends \App\Controllers\BaseController
         $policyRow = [
             'productId' => isset($post['productId']) ? (int)$post['productId'] : null,
             'status'    => $post['status'] ?? 'Active',
+            'policyNumber'    => $post['policyNumber'] ?? null,
+            'customerName'    => $post['customerName'] ?? null,
+            'customerphone'    => $post['customerphone'] ??null,
 
         ];
-      
+       
     
         if (empty($policyRow['productId'])) {
             return redirect()->back()->with('error', ['Please select a product'])->withInput();
@@ -306,9 +340,12 @@ class Policies extends \App\Controllers\BaseController
 
         $data->fill([
             'productId' => $post['productId'] ?? $data->productId,
-        
+            'policyNumber'    => $post['policyNumber'] ??$data->policyNumber,
+            'customerName'    => $post['customerName'] ??$data->customerName,
+            'customerphone'    => $post['customerphone'] ??$data->customerphone,
             'status'    => $post['status'] ?? $data->status
         ]);
+    
 
 
         $policySaved = $data->hasChanged() ? $this->model->save($data) : true;
@@ -334,18 +371,18 @@ class Policies extends \App\Controllers\BaseController
                 'attributeId' => (int)$attributeId,
                 'value'       => $valueStr,
             ];
-            dd($avRow);
+  
 
             if (!$avModel->insert($avRow)) {
                 $errors[] = "Attribute [$attributeId]: " . implode(', ', (array)$avModel->errors());
                 continue;
             }
 
-            $attributeValueId = $avModel->getInsertID();
-            $pavModel->insert([
-                'policyId' => $policyId,
-                'attributeValueId' => $attributeValueId
-            ]);
+            // $attributeValueId = $avModel->getInsertID();
+            // $pavModel->insert([
+            //     'policyId' => $policyId,
+            //     'attributeValueId' => $attributeValueId
+            // ]);
         }
 
         if (!empty($errors)) {

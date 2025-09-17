@@ -31,22 +31,22 @@ class Dashboard extends \App\Controllers\BaseController
   $this->policiesModel->resetQuery();
         // Policies by day (for chart) — returns array of {date, total}
         $rows = $this->policiesModel
-            ->asArray()
-            ->select("DATE(created_at) as date, COUNT(policyId) as total")
-            ->where('created_at IS NOT NULL')
-            ->groupBy('DATE(created_at)')
-            ->orderBy('date', 'ASC')
-            ->findAll();
-         
-
-        $policiesByDays = [];
-        foreach ($rows as $r) {
-            $policiesByDays[] = [
-                'date' => $r['date'],
-                'total' => (int) $r['total']
-            ];
-        }
-
+        ->asArray()
+        ->select("DATE(created_at) as date, COUNT(policyId) as total")
+        ->where('created_at IS NOT NULL')
+        ->where('created_at >=', date('Y-m-d', strtotime('-30 days'))) // ✅ only last 30 days
+        ->groupBy('DATE(created_at)')
+        ->orderBy('date', 'ASC')
+        ->findAll();
+    
+    $policiesByDays = [];
+    foreach ($rows as $r) {
+        $policiesByDays[] = [
+            'date' => $r['date'],
+            'total' => (int) $r['total']
+        ];
+    }
+    
    // inside Dashboard::index()
 $productPolicyCounts = $this->productsModel
 ->asArray()                       // <--- return plain arrays, not Entities
