@@ -59,17 +59,31 @@ class Reports extends \App\Controllers\BaseController
 
             $rows = $builder->get()->getResultArray();
 
-            foreach ($rows as $r) {
-                $tableArray[] = [
-                    'policyId'      => $r['policyId'] ?? '',
-                    'policyNumber'  => $r['policyNumber'] ?? '',
-                    'customerName'  => $r['customerName'] ?? '',
-                    'customerphone' => $r['customerphone'] ?? '',
-                    'status'        => $r['status'] ?? '',
-                    'productName'   => $r['productName'] ?? '',
-                    'created_at'    => $r['created_at'] ?? '',
-                ];
-            }
+         // Replace the foreach block in Reports::index() that builds $tableArray with this (controller tweak).
+// This normalizes status text and ensures created_at is present and formatted consistently.
+foreach ($rows as $r) {
+    $status = isset($r['status']) ? strtolower(trim($r['status'])) : '';
+    // normalize common variants
+    if ($status === '1' || $status === 'active' || $status === 'enabled') { $statusLabel = 'Active'; }
+    elseif ($status === '0' || $status === 'expired') { $statusLabel = 'Expired'; }
+    elseif ($status === 'lapsed') { $statusLabel = 'Lapsed'; }
+    elseif ($status === 'cancelled') { $statusLabel = 'Cancelled'; }
+    else { $statusLabel = ucfirst($status ?: 'Unknown'); }
+
+    $created = $r['created_at'] ?? null;
+    // keep raw created_at (DB value) so view can format — but ensure non-empty
+    $createdVal = $created ? date("Y-m-d H:i:s", strtotime($created)) : '';
+
+    $tableArray[] = [
+        'policyId'      => $r['policyId'] ?? '',
+        'policyNumber'  => $r['policyNumber'] ?? '',
+        'customerName'  => $r['customerName'] ?? '',
+        'customerphone' => $r['customerphone'] ?? '',
+        'status'        => $statusLabel,
+        'productName'   => $r['productName'] ?? '',
+        'created_at'    => $createdVal,
+    ];
+}
 
             // ---- Summary counts ----
             $summary['totalPolicies'] = count($rows);
