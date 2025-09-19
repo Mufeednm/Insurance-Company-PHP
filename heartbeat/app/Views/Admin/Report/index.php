@@ -16,9 +16,21 @@
 .table.table-bordered th, .table.table-bordered td { vertical-align: middle; }
 
 .filter-box { background:#fff;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(10,10,10,0.04); }
-.filter-bar { background:#fff; border-radius:8px; padding:10px; box-shadow:0 4px 14px rgba(10,10,10,0.03); margin-bottom:14px; display:flex; gap:10px; align-items:end; }
+.filter-bar { background:#fff; border-radius:8px; padding:10px; box-shadow:0 4px 14px rgba(10,10,10,0.03); margin-bottom:14px; }
 
 .badge-rounded { border-radius:999px; padding:6px 10px; font-weight:600; font-size:12px; }
+
+/* Make report table rows taller and more readable */
+#reportTable tbody tr td {
+    padding: 12px 10px;   /* more vertical space */
+    font-size: 0.95rem;   /* slightly larger font */
+}
+
+#reportTable thead th {
+    padding: 14px 10px;
+    font-size: 0.95rem;
+}
+
 </style>
 <?= $this->endSection() ?>
 
@@ -44,6 +56,8 @@ if (! function_exists('getv')) {
         return $default;
     }
 }
+$today = date('Y-m-d');
+$placeholder = $today . ' to ' . $today;
 ?>
 
 <div class="row">
@@ -74,7 +88,11 @@ if (! function_exists('getv')) {
                 <div class="row g-2">
                     <div class="col-md-6">
                         <label class="form-label">Date Range</label>
-                        <input id="reportRange" name="reportRange" type="text" class="form-control" placeholder="YYYY-MM-DD to YYYY-MM-DD" value="<?= esc($data['post']['reportRange'] ?? '') ?>" autocomplete="off" />
+                        <input id="reportRange" name="reportRange" type="text" 
+                               class="form-control" 
+                               placeholder="<?= $placeholder ?>" 
+                               value="<?= esc($data['post']['reportRange'] ?? '') ?>" 
+                               autocomplete="off" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Product</label>
@@ -109,16 +127,33 @@ if (! function_exists('getv')) {
 
                    <!-- Inline filter bar -->
                    <div class="filter-bar mb-3">
-                       <?= form_open(ROUTE, ['id'=>'reportCompact','method'=>'get','class'=>'d-flex gap-2 flex-wrap w-100']); ?>
-                           <input id="reportRangeCompact" name="reportRange" type="text" class="form-control form-control-sm" placeholder="YYYY-MM-DD to YYYY-MM-DD" value="<?= esc($data['post']['reportRange'] ?? '') ?>" autocomplete="off" style="min-width:200px;" />
-                           <select class="form-control form-control-sm select2" id="productIdCompact" name="productId" style="min-width:200px;">
-                               <option value="">All products</option>
-                               <?php foreach ($data['products'] as $p): ?>
-                                   <option value="<?= esc(getv($p,'productId')) ?>" <?= (isset($data['post']['productId']) && (string)$data['post']['productId'] === (string)getv($p,'productId'))?'selected':''; ?>><?= esc(getv($p,'name')) ?></option>
-                               <?php endforeach; ?>
-                           </select>
-                           <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-                           <a href="<?= site_url(ROUTE) ?>" class="btn btn-outline-secondary btn-sm">Reset</a>
+                       <?= form_open(ROUTE, ['id'=>'reportCompact','method'=>'get','class'=>'row g-2 align-items-end w-100']); ?>
+
+                           <div class="col-md-4 col-sm-6">
+                               <label for="reportRangeCompact" class="form-label">Date Range</label>
+                               <input id="reportRangeCompact" name="reportRange" type="text" 
+                                      class="form-control" 
+                                      placeholder="<?= $placeholder ?>" 
+                                      value="<?= esc($data['post']['reportRange'] ?? '') ?>" 
+                                      autocomplete="off" />
+                           </div>
+
+                           <div class="col-md-4 col-sm-6">
+                               <label for="productIdCompact" class="form-label mb-1">Product</label>
+                               <select class="form-control form-control-sm select2" 
+                                       id="productIdCompact" name="productId">
+                                   <option value="">All products</option>
+                                   <?php foreach ($data['products'] as $p): ?>
+                                       <option value="<?= esc(getv($p,'productId')) ?>" <?= (isset($data['post']['productId']) && (string)$data['post']['productId'] === (string)getv($p,'productId'))?'selected':''; ?>><?= esc(getv($p,'name')) ?></option>
+                                   <?php endforeach; ?>
+                               </select>
+                           </div>
+
+                           <div class="col-md-4 col-sm-12 text-start text-md-end">
+                               <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                               <a href="<?= site_url(ROUTE) ?>" class="btn btn-outline-secondary btn-sm">Reset</a>
+                           </div>
+
                        </form>
                    </div>
 
