@@ -7,36 +7,30 @@
 <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.bootstrap.min.css" />
 <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.dataTables.min.css" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" />
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
+/* small adjustments to keep parity with other pages */
 .card { border-radius: 8px; }
-.card .card-header { padding: 12px 16px; }
-.card .card-body { padding: 0; }
 .table.table-sm { font-size: 0.9rem; }
 .table.table-bordered th, .table.table-bordered td { vertical-align: middle; }
+.badge-rounded { border-radius: 999px; padding: 6px 10px; font-weight: 600; font-size: 12px; }
 
-.filter-box { background:#fff;border-radius:10px;padding:16px;box-shadow:0 8px 24px rgba(10,10,10,0.04); }
-.filter-bar { background:#fff; border-radius:8px; padding:10px; box-shadow:0 4px 14px rgba(10,10,10,0.03); margin-bottom:14px; }
+/* Table spacing */
+#reportTable tbody tr td { padding: 12px 10px; font-size: 0.95rem; }
+#reportTable thead th { padding: 14px 10px; font-size: 0.95rem; }
 
-.badge-rounded { border-radius:999px; padding:6px 10px; font-weight:600; font-size:12px; }
+/* Keep accordion header compact */
+#filterAccordion .accordion-button { padding: 0.6rem 1rem; }
+.filter-toggle-btn { min-width: 140px; }
 
-/* Make report table rows taller and more readable */
-#reportTable tbody tr td {
-    padding: 12px 10px;   /* more vertical space */
-    font-size: 0.95rem;   /* slightly larger font */
-}
-
-#reportTable thead th {
-    padding: 14px 10px;
-    font-size: 0.95rem;
-}
-
+/* When filter collapsed show small info line */
+.filter-collapsed-info { font-size: 0.9rem; color: #6c757d; }
 </style>
 <?= $this->endSection() ?>
 
 <?= $this->section("content") ?>
 
 <?php
+// helper to safely pull values
 if (! function_exists('getv')) {
     function getv($item, $key, $default = '') {
         if (is_array($item)) return $item[$key] ?? $default;
@@ -56,10 +50,10 @@ if (! function_exists('getv')) {
         return $default;
     }
 }
-$today = date('Y-m-d');
-$placeholder = $today . ' to ' . $today;
+$hasResults = !empty($data['table']);
 ?>
 
+<!-- page header -->
 <div class="row">
    <div class="col-12">
       <div class="page-title-box d-sm-flex align-items-center justify-content-between">
@@ -67,7 +61,7 @@ $placeholder = $today . ' to ' . $today;
          <div class="page-title-right">
             <ol class="breadcrumb m-0">
                <li class="breadcrumb-item"><a href="<?= site_url('dashboard'); ?>">Dashboard</a></li>
-               <li class="breadcrumb-item"><a href="javascript: void(0);">Report</a></li>
+               <li class="breadcrumb-item"><a href="javascript:void(0);">Report</a></li>
                <li class="breadcrumb-item active"><?= $const["items"]; ?></li>
             </ol>
          </div>
@@ -75,134 +69,111 @@ $placeholder = $today . ' to ' . $today;
    </div>
 </div>
 
-<?php $hasResults = !empty($data['table']); ?>
-<div class="container-fluid mt-3">
+<div class="row">
+   <div class="col-lg-12">
 
-    <!-- Stage 1: Large filter (only when no results yet) -->
-    <?php if (!$hasResults): ?>
-    <div class="row justify-content-center mb-3">
-        <div class="col-lg-8">
-            <div class="filter-box">
-                <h5 class="mb-3">Generate Report</h5>
-                <?= form_open(ROUTE, ['id'=>'report','method'=>'get']); ?>
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <label class="form-label">Date Range</label>
-                        <input id="reportRange" name="reportRange" type="text" 
-                               class="form-control" 
-                               placeholder="<?= $placeholder ?>" 
-                               value="<?= esc($data['post']['reportRange'] ?? '') ?>" 
-                               autocomplete="off" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Product</label>
-                        <select class="form-control select2" id="productId" name="productId">
-                            <option value="">All products</option>
-                            <?php foreach ($data['products'] as $p): ?>
-                                <option value="<?= esc(getv($p,'productId')) ?>" <?= (isset($data['post']['productId']) && (string)$data['post']['productId'] === (string)getv($p,'productId'))?'selected':''; ?>><?= esc(getv($p,'name')) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
-                <div class="text-end mt-3">
-                    <button class="btn btn-primary">Generate</button>
-                </div>
-                </form>
+      <!-- Accordion: FILTER -->
+      <div class="accordion mb-3" id="filterAccordion">
+         <div class="accordion-item">
+            <?php
+               // If no results -> show filter open. If results -> collapse the filter so results area is primary.
+               $accordionShowClass = $hasResults ? '' : 'show';
+               $ariaExpanded = $hasResults ? 'false' : 'true';
+            ?>
+            <h2 class="accordion-header" id="filterHeading">
+               <button class="accordion-button <?= $hasResults ? 'collapsed' : '' ?>" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="<?= $ariaExpanded ?>" aria-controls="filterCollapse">
+                  Filter Report
+               </button>
+            </h2>
+
+            <div id="filterCollapse" class="accordion-collapse collapse <?= $accordionShowClass ?>" aria-labelledby="filterHeading" data-bs-parent="#filterAccordion">
+               <div class="accordion-body">
+                  <?= form_open(ROUTE, ['method'=>'get','id'=>'reportForm','class'=>'row g-3 align-items-end']); ?>
+                      <div class="col-md-4">
+                          <label class="form-label">Date Range</label>
+                          <input type="text" id="reportRange" name="reportRange" class="form-control" placeholder="<?= date('Y-m-d') . ' to ' . date('Y-m-d'); ?>" value="<?= esc($data['post']['reportRange'] ?? '') ?>" autocomplete="off" />
+                      </div>
+
+                      <div class="col-md-4">
+                          <label class="form-label">Product</label>
+                          <select name="productId" id="productId" class="form-select">
+                              <option value="">All Products</option>
+                              <?php foreach ($data['products'] as $p): ?>
+                                  <option value="<?= esc(getv($p,'productId')) ?>" <?= (!empty($data['post']['productId']) && (string)$data['post']['productId'] === (string)getv($p,'productId')) ? 'selected' : '' ?>>
+                                      <?= esc(getv($p,'name')) ?>
+                                  </option>
+                              <?php endforeach; ?>
+                          </select>
+                      </div>
+
+                      <div class="col-md-4 text-end">
+                          <button type="submit" class="btn btn-primary filter-toggle-btn">Generate</button>
+                          <a href="<?= site_url(ROUTE) ?>" class="btn btn-outline-secondary ms-2">Reset</a>
+                      </div>
+                  </form>
+               </div>
             </div>
-        </div>
-    </div>
-    <?php endif; ?>
+         </div>
+      </div>
 
-    <!-- Stage 2: Results with inline filter + DataTable -->
-    <?php if ($hasResults): ?>
-    <div class="row">
-       <div class="col-lg-12">
-          <div class="card">
-             <div class="card-header border-0">
-                <h5 class="mb-0">Report Results</h5>
-             </div>
+      <!-- When results exist show a small "Filters" quick-open control above results -->
+      <?php if ($hasResults): ?>
+         <div class="mb-2 d-flex justify-content-between align-items-center">
+            <div class="filter-collapsed-info">Showing results for: <strong><?= esc($data['post']['reportRange'] ?? 'All dates') ?></strong> — Product: <strong><?= esc((function() use ($data){ foreach($data['products'] as $p){ if(!empty($data['post']['productId']) && (string)$data['post']['productId'] === (string)getv($p,'productId')) return getv($p,'name'); } return 'All'; })()) ?></strong></div>
+            <div>
+               <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">Edit Filters</button>
+            </div>
+         </div>
+      <?php endif; ?>
 
-             <div class="card-body border border-dashed border-end-0 p-0">
-                <div class="p-3">
-
-                   <!-- Inline filter bar -->
-                   <div class="filter-bar mb-3">
-                       <?= form_open(ROUTE, ['id'=>'reportCompact','method'=>'get','class'=>'row g-2 align-items-end w-100']); ?>
-
-                           <div class="col-md-4 col-sm-6">
-                               <label for="reportRangeCompact" class="form-label">Date Range</label>
-                               <input id="reportRangeCompact" name="reportRange" type="text" 
-                                      class="form-control" 
-                                      placeholder="<?= $placeholder ?>" 
-                                      value="<?= esc($data['post']['reportRange'] ?? '') ?>" 
-                                      autocomplete="off" />
-                           </div>
-
-                           <div class="col-md-4 col-sm-6">
-                               <label for="productIdCompact" class="form-label mb-1">Product</label>
-                               <select class="form-control form-control-sm select2" 
-                                       id="productIdCompact" name="productId">
-                                   <option value="">All products</option>
-                                   <?php foreach ($data['products'] as $p): ?>
-                                       <option value="<?= esc(getv($p,'productId')) ?>" <?= (isset($data['post']['productId']) && (string)$data['post']['productId'] === (string)getv($p,'productId'))?'selected':''; ?>><?= esc(getv($p,'name')) ?></option>
-                                   <?php endforeach; ?>
-                               </select>
-                           </div>
-
-                           <div class="col-md-4 col-sm-12 text-start text-md-end">
-                               <button type="submit" class="btn btn-primary btn-sm">Apply</button>
-                               <a href="<?= site_url(ROUTE) ?>" class="btn btn-outline-secondary btn-sm">Reset</a>
-                           </div>
-
-                       </form>
-                   </div>
-
-                   <!-- DataTable -->
-                   <table id="reportTable" class="table table-bordered table-striped align-middle table-sm" style="width:100%">
-                      <thead class="thead-dark">
-                         <tr>
-                            <th>SL#</th>
-                            <th>Policy Number</th>
-                            <th>Customer</th>
-                            <th>Phone</th>
-                            <th>Status</th>
-                            <th>Product</th>
-                            <th>Created</th>
-                         </tr>
-                      </thead>
-                      <tbody>
+      <!-- RESULTS TABLE (only rendered when data present) -->
+      <?php if ($hasResults): ?>
+         <div class="card shadow-sm">
+            <div class="card-body p-3">
+               <div class="table-responsive">
+                  <table id="reportTable" class="table table-bordered table-striped align-middle table-sm nowrap" style="width:100%">
+                     <thead class="thead-dark">
+                        <tr>
+                           <th>SL#</th>
+                           <th>Policy Number</th>
+                           <th>Customer</th>
+                           <th>Phone</th>
+                           <th>Status</th>
+                           <th>Product</th>
+                           <th>Created</th>
+                        </tr>
+                     </thead>
+                     <tbody>
                         <?php foreach ($data['table'] as $i => $row): ?>
-                          <tr>
-                             <td><?= esc($i+1) ?></td>
-                             <td><?= esc($row['policyNumber']) ?></td>
-                             <td><?= esc($row['customerName']) ?></td>
-                             <td><?= esc($row['customerphone']) ?></td>
-                             <td>
-                                 <?php $st = strtolower($row['status'] ?? ''); ?>
-                                 <?php if ($st === 'active'): ?>
-                                     <span class="badge bg-success badge-rounded">Active</span>
-                                 <?php elseif ($st === 'lapsed' || $st === 'expired'): ?>
-                                     <span class="badge bg-warning text-dark badge-rounded"><?= esc(ucfirst($st)) ?></span>
-                                 <?php elseif ($st === 'cancelled'): ?>
-                                     <span class="badge bg-danger badge-rounded">Cancelled</span>
-                                 <?php else: ?>
-                                     <span class="badge bg-secondary badge-rounded"><?= esc(ucfirst($st ?: 'Unknown')) ?></span>
-                                 <?php endif; ?>
-                             </td>
-                             <td><?= esc($row['productName']) ?></td>
-                             <td><?= esc(!empty($row['created_at']) ? date('d/M/Y H:i', strtotime($row['created_at'])) : '') ?></td>
-                          </tr>
+                        <tr>
+                           <td><?= esc($i+1) ?></td>
+                           <td><?= esc($row['policyNumber']) ?></td>
+                           <td><?= esc($row['customerName']) ?></td>
+                           <td><?= esc($row['customerphone']) ?></td>
+                           <td class="text-nowrap">
+                              <?php $st = strtolower($row['status'] ?? ''); ?>
+                              <?php if ($st === 'active'): ?>
+                                 <span class="badge bg-success badge-rounded">Active</span>
+                              <?php elseif ($st === 'lapsed' || $st === 'expired'): ?>
+                                 <span class="badge bg-warning text-dark badge-rounded"><?= esc(ucfirst($st)) ?></span>
+                              <?php elseif ($st === 'cancelled'): ?>
+                                 <span class="badge bg-danger badge-rounded">Cancelled</span>
+                              <?php else: ?>
+                                 <span class="badge bg-secondary badge-rounded"><?= esc(ucfirst($st ?: 'Unknown')) ?></span>
+                              <?php endif; ?>
+                           </td>
+                           <td><?= esc($row['productName']) ?></td>
+                           <td><?= esc(!empty($row['created_at']) ? date('d/M/Y H:i', strtotime($row['created_at'])) : '') ?></td>
+                        </tr>
                         <?php endforeach; ?>
-                      </tbody>
-                   </table>
+                     </tbody>
+                  </table>
+               </div>
+            </div>
+         </div>
+      <?php endif; ?>
 
-                </div>
-             </div>
-          </div>
-       </div>
-    </div>
-    <?php endif; ?>
-
+   </div>
 </div>
 
 <?= $this->endSection() ?>
@@ -210,43 +181,48 @@ $placeholder = $today . ' to ' . $today;
 <?= $this->section("footerjs") ?>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
 <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-    flatpickr('#reportRange', { mode: 'range', dateFormat: 'Y-m-d', allowInput: true });
-    flatpickr('#reportRangeCompact', { mode: 'range', dateFormat: 'Y-m-d', allowInput: true });
+    // flatpickr date range (same input used for both initial and accordion form)
+    if (typeof flatpickr !== 'undefined') {
+        flatpickr('#reportRange', { mode:'range', dateFormat:'Y-m-d', allowInput:true });
+    }
 
-    $('#productId').select2({ width:'100%' });
-    $('#productIdCompact').select2({ width:'100%' });
+    // init datatable only if table exists (results present)
+    if (document.getElementById('reportTable')) {
+        $('#reportTable').DataTable({
+            processing: false,
+            serverSide: false,
+            stateSave: true,
+            scrollX: true,
+            responsive: true,
+            stripeClasses: [],
+            language: { searchPlaceholder: "Search..." },
+            dom: '<"row"<"col-md-6"B><"col-md-6"f>>rtip',
+            buttons: [
+                { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-sm btn-outline-success' },
+                { extend: 'print', text: 'Print', className: 'btn btn-sm btn-outline-secondary' }
+            ],
+            order: []
+        });
+    }
 
-    $('#reportTable').DataTable({
-        processing: false,
-        serverSide: false,
-        stateSave: true,
-        scrollX: true,
-        responsive: true,
-        stripeClasses: [],
-        language: { searchPlaceholder: "Search..." },
-        dom: '<"row"<"col-md-6"B><"col-md-6"f>>rtip',
-        buttons: [
-            { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-sm btn-outline-success' },
-            { extend: 'print', text: 'Print', className: 'btn btn-sm btn-outline-secondary' }
-        ],
-        order: []
-    });
-
-    $('#report, #reportCompact').on('submit', function(){
-        $(this).find('button[type=submit]').prop('disabled',true).text('Generating...');
-    });
+    // optional: when user opens the accordion, focus the date input for quicker editing
+    var filterCollapseEl = document.getElementById('filterCollapse');
+    if (filterCollapseEl) {
+        filterCollapseEl.addEventListener('shown.bs.collapse', function () {
+            var input = document.getElementById('reportRange');
+            if (input) input.focus();
+        });
+    }
 });
 </script>
 <?= $this->endSection() ?>

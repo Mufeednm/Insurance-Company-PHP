@@ -31,14 +31,14 @@ class Reports extends \App\Controllers\BaseController
             'cancelledPolicies'=> 0,
         ];
 
-        // GET preferred so URL holds filters
+        // prefer GET so URL holds filters
         $inputGet  = $this->request->getGet();
         $inputPost = $this->request->getPost();
 
         $productId   = $inputGet['productId']   ?? $inputPost['productId']   ?? '';
         $reportRange = $inputGet['reportRange'] ?? $inputPost['reportRange'] ?? '';
 
-        // run query only when product or date filter exists
+        // run query only when a filter exists
         if (!empty($productId) || !empty($reportRange)) {
 
             $builder = $this->policies
@@ -50,6 +50,7 @@ class Reports extends \App\Controllers\BaseController
             }
 
             if (!empty($reportRange)) {
+                // support "YYYY-MM-DD to YYYY-MM-DD" or single date
                 $dateSplit = preg_split('/\s+to\s+/i', trim($reportRange));
                 $from = date("Y-m-d", strtotime($dateSplit[0]));
                 $to   = (count($dateSplit) === 2) ? date("Y-m-d", strtotime($dateSplit[1])) : $from;
@@ -59,41 +60,39 @@ class Reports extends \App\Controllers\BaseController
 
             $rows = $builder->get()->getResultArray();
 
-         // Replace the foreach block in Reports::index() that builds $tableArray with this (controller tweak).
-// This normalizes status text and ensures created_at is present and formatted consistently.
-foreach ($rows as $r) {
-    $status = isset($r['status']) ? strtolower(trim($r['status'])) : '';
-    // normalize common variants
-    if ($status === '1' || $status === 'active' || $status === 'enabled') { $statusLabel = 'Active'; }
-    elseif ($status === '0' || $status === 'expired') { $statusLabel = 'Expired'; }
-    elseif ($status === 'lapsed') { $statusLabel = 'Lapsed'; }
-    elseif ($status === 'cancelled') { $statusLabel = 'Cancelled'; }
-    else { $statusLabel = ucfirst($status ?: 'Unknown'); }
+            // build tableArray — normalize status & created_at
+            foreach ($rows as $r) {
+                $status = isset($r['status']) ? strtolower(trim((string)$r['status'])) : '';
+                if ($status === '1' || $status === 'active' || $status === 'enabled') { $statusLabel = 'Active'; }
+                elseif ($status === '0' || $status === 'expired') { $statusLabel = 'Expired'; }
+                elseif ($status === 'lapsed') { $statusLabel = 'Lapsed'; }
+                elseif ($status === 'cancelled') { $statusLabel = 'Cancelled'; }
+                else { $statusLabel = ucfirst($status ?: 'Unknown'); }
 
-    $created = $r['created_at'] ?? null;
-    // keep raw created_at (DB value) so view can format — but ensure non-empty
-    $createdVal = $created ? date("Y-m-d H:i:s", strtotime($created)) : '';
+                $created = $r['created_at'] ?? null;
+                $createdVal = $created ? date("Y-m-d H:i:s", strtotime($created)) : '';
 
-    $tableArray[] = [
-        'policyId'      => $r['policyId'] ?? '',
-        'policyNumber'  => $r['policyNumber'] ?? '',
-        'customerName'  => $r['customerName'] ?? '',
-        'customerphone' => $r['customerphone'] ?? '',
-        'status'        => $statusLabel,
-        'productName'   => $r['productName'] ?? '',
-        'created_at'    => $createdVal,
-    ];
-}
+                $tableArray[] = [
+                    'policyId'      => $r['policyId'] ?? '',
+                    'policyNumber'  => $r['policyNumber'] ?? '',
+                    'customerName'  => $r['customerName'] ?? '',
+                    'customerphone' => $r['customerphone'] ?? '',
+                    'status'        => $statusLabel,
+                    'productName'   => $r['productName'] ?? '',
+                    'created_at'    => $createdVal,
+                ];
+            }
 
-            // ---- Summary counts ----
+            // ---- Summary counts (normalize on original rows) ----
             $summary['totalPolicies'] = count($rows);
-            $summary['activePolicies'] = count(array_filter($rows, fn($x) => strtolower($x['status']) === 'active'));
-            $summary['lapsedPolicies'] = count(array_filter($rows, fn($x) => strtolower($x['status']) === 'lapsed'));
-            $summary['cancelledPolicies'] = count(array_filter($rows, fn($x) => strtolower($x['status']) === 'cancelled'));
+            $summary['activePolicies'] = count(array_filter($rows, fn($x) => strtolower((string)($x['status'] ?? '')) === 'active'));
+            $summary['lapsedPolicies'] = count(array_filter($rows, fn($x) => strtolower((string)($x['status'] ?? '')) === 'lapsed'));
+            $summary['cancelledPolicies'] = count(array_filter($rows, fn($x) => strtolower((string)($x['status'] ?? '')) === 'cancelled'));
         }
 
         $data = [
             'table'    => $tableArray,
+            // merge GET and POST so the view finds submitted values
             'post'     => array_merge($inputPost ?? [], $inputGet ?? []),
             'products' => $this->products->findAll(),
             'summary'  => $summary
